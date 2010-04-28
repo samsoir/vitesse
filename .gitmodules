@@ -1,0 +1,3 @@
+[submodule "php/modules/cache"]
+	path = php/modules/cache
+	url = git://github.com/samsoir/kohana-cache.git
