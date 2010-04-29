@@ -19,9 +19,52 @@
 class Request_Vitesse extends Kohana_Request {
 
 	/**
+	 * Re-creates the Cache-Control header string
+	 *
+	 * @param   array    cache_control parts to render
+	 * @return  string
+	 */
+	public static function create_cache_control(array $cache_control)
+	{
+		$parts = array();
+		foreach ($cache_control as $key => $value)
+		{
+			$parts[] = empty($value) ? $key : $key.'='.$value;
+		}
+		return implode(', ', $parts);
+	}
+
+	/**
+	 * Parses the Cache-Control header and returns
+	 * and array of settings
+	 *
+	 * @param   array    headers 
+	 * @return  boolean|array
+	 */
+	public static function extract_cache_control(array $headers)
+	{
+		// If there is no Cache-Control header
+		if ( ! isset($headers['Cache-Control']))
+		{
+			// return
+			return FALSE;
+		}
+
+		// If no Cache-Control parts are detected
+		if (FALSE === preg_match_all('/(?<key>[a-z\-]+)=?(?<value>\w+)?/', $headers['Cache-Control'], $matches))
+		{
+			// Return
+			return FALSE;
+		}
+
+		// Return combined cache-control key/value pairs
+		return array_combine($matches['key'], $matches['value']);
+	}
+
+	/**
 	 * @var  Kohana_Cache
 	 */
-	public $cache;
+	protected $_cache;
 
 	/**
 	 * Use nginx+memcache caching
@@ -29,17 +72,16 @@ class Request_Vitesse extends Kohana_Request {
 	 * reaching Kohana if available
 	 *
 	 * @var  boolean
+	 * @todo Make this a callback I think
 	 */
-	public $nginx_caching = FALSE;
+	protected $_nginx_caching = FALSE;
 
 	/**
-	 * This is presently not used, but may be used
-	 * to tailor memcached entries specifically for
-	 * nginx-memcache proxy_pass routines
+	 * If the cache push fails, handle silently
 	 *
 	 * @var  boolean
 	 */
-	protected $_nginx_present;
+	protected $_silent_cache_fail = TRUE;
 
 	/**
 	 * Creates a new request object for the given URI. New requests should be
@@ -59,18 +101,17 @@ class Request_Vitesse extends Kohana_Request {
 		// Run the parent constructor
 		parent::__construct($uri, $config);
 
-		// Try to load the Vitesse configuration group
-		$this->cache = Cache::instance('vitesse');
+		// Initialise the cache library (if required)
+		if (NULL === $this->_cache)
+		{
+			$this->_cache = Cache::instance('vitesse');
+		}
 
 		// Check the cache engine type (Memcache works with nginx)
-		if ( ! $this->cache instanceof Kohana_Cache)
+		if ( ! $this->_cache instanceof Kohana_Cache)
 		{
 			throw new Kohana_Request_Exception('Dependency injection failure. Unable to load required Memcache Cache driver.');
 		}
-
-		// Test for nginx. Reset this value (incase set elsewhere or using D.I.)
-		// (This is not reliable, as it can be overridden)
-		$this->_nginx_present = preg_match('/nginx\//', $_SERVER['SERVER_SOFTWARE']);
 	}
 
 	/**
@@ -108,16 +149,75 @@ class Request_Vitesse extends Kohana_Request {
 		// Create the cache key
 		$key = $this->_create_cache_key();
 
-		// Attempt to load cache entry
-		$response = $this->_cache->get($key);
+		// Validate cached response
+		$response = $this->validate($key);
 
-		if (NULL !== $response)
+		// If we get a valid response
+		if ($response instanceof Kohana_Response)
 		{
-			// Check the response
+			// Return the response
+			return $response;
 		}
 
 		// Get the response
 		$response = parent::execute();
+
+		// Try and cache the response and return it
+		if (($_response = $this->_cache_response($key, $response) instanceof Kohana_Response)
+		{
+			return $_response;
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Validates a cached response to check
+	 * it is still fresh
+	 *
+	 * @param   string   key 
+	 * @return  bool|Kohana_Response
+	 * @throws  Kohana_Request_Exception
+	 */
+	public function validate($key)
+	{
+		// Attempt to load the cache entry (hopefully, it should have expired in cache)
+		try
+		{
+			// If there is no cached try
+			if ( ! $response = $this->_cache->get($key))
+			{
+				// return
+				return FALSE;
+			}
+		}
+		catch (Kohana_Cache_Exception $e)
+		{
+			if ( ! $this->_silent_cache_fail)
+			{
+				throw new Kohana_Request_Exception('Failed to load cached page successfully using key : \':key\' with message : \':message\'', array(':message' => $e->getMessage(), ':key' => $key));
+			}
+
+			return FALSE;
+		}
+
+		// Now check the headers, just in case a stale entry remained in cache
+		// past its expiry date (you never know!)
+
+		// Get the Cache-Control Header
+		$cache_control = Request::extract_cache_control($response->headers['Cache-Control']);
+
+		// If the response has expired
+		if (strtotime($cache_control['max-age']) > time())
+		{
+			// Remove this entry
+			$this->_cache->delete($key);
+			// return
+			return FALSE;
+		}
+
+		// Return response
+		return $response;
 	}
 
 	/**
@@ -137,6 +237,138 @@ class Request_Vitesse extends Kohana_Request {
 	 */
 	protected function _create_cache_key()
 	{
-		return trim(Kohana::$base_url, '/').$this->uri();
+		return trim(Kohana::$base_url, '/').'/cache'.$this->uri();
+	}
+
+	/**
+	 * Caches a response to internal cache and
+	 * if available, nginx+memcache
+	 * 
+	 * The secondary call may be made a callback
+	 * in future.
+	 *
+	 * @param   string   key 
+	 * @param   Kohana_Response $response 
+	 * @return  bool
+	 * @throws  Kohana_Request_Exception
+	 */
+	protected function _cache_response($key, Kohana_Response $response)
+	{
+		// If no caching headers are found
+		if ( ! $cache_control = Request::extract_cache_control($response->headers))
+		{
+			// return
+			return FALSE
+		}
+
+		// If no-cache or no-store is set
+		if (isset($cache_control['no-cache'] or isset($cache_control['no-store'])))
+		{
+			// return
+			return FALSE;
+		}
+
+		// If the response status is not Success
+		if ($response->status < 200 or $response->status > 299)
+		{
+			// return
+			return FALSE;
+		}
+
+		// If no max-age or Expires values are set
+		if ( ! isset($cache_control['max-age']))
+		{
+			// If there is no expires header
+			if ( ! isset($response->headers['Expires']))
+			{
+				// return
+				return FALSE;
+			}
+
+			// Calculate max-age cache control from Expires header
+			$cache_control['max-age'] = strtotime($response->headers['Expires']) - time();
+
+			// Check max age sanity
+			if ($cache_control['max-age'] =< 0)
+			{
+				return FALSE;
+			}
+		}
+
+		// Get time now
+		$time = time();
+
+		// If the expires header is not set
+		if ( ! isset($response->headers['Expires']))
+		{
+			// Calculate expires header (DateTime would probably be better here - SdF)
+			$expires = gmdate('D, d M Y H:i:s T', $time+$max_age);
+		}
+
+		$cache_control['max-age'] = $max_age;
+
+		// Tell caches to check their validation
+		$cache_control['must-revalidate'] = '';
+
+		// Replace the headers with those that are not set
+		$response->headers += array(
+			'Cache-Control'  => Request::create_cache_control($cache_control),
+			'Expires'        => $expires,
+			'Last-Modified'  => gmdate('D, d M Y H:i:s T', $time),
+			'Content-Length' => strlen((string) $response->body)
+		);
+
+		// Cache the response
+		$this->_cache->set($key, $response, $max_age);
+
+		try
+		{
+			// If no nginx available
+			if ( ! $this->_nginx_caching)
+			{
+				// Return
+				return TRUE;
+			}
+			else
+			{
+				// Cache for nginx and return
+				return $this->_nginx_cache($key, $response, $max_age);
+			}
+		}
+		catch (Kohana_Cache_Exception $e)
+		{
+			if ( ! $this->_silent_cache_fail)
+			{
+				throw new Kohana_Request_Exception('Failed to cache page successfully with message : :message', array(':message' => $e->getMessage()));
+			}
+
+			return FALSE;
+		}
+	}
+
+	/**
+	 * Push the cached page to Nginx/Memcache
+	 *
+	 * @param   string   key
+	 * @param   Kohana_Response response
+	 * @param   int      lifetime in seconds
+	 * @return  boolean
+	 */
+	protected function _nginx_cache($key, Kohana_Response $response, $lifetime)
+	{
+		// Create empty buffer
+		$buffer = '';
+
+		// Generate HTTP header
+		foreach ($response->headers as $key => $value)
+		{
+			$buffer .= "{$key}: {$value}\n";
+		}
+
+		// Create HTTP body
+		$buffer .= "\n".$response->body;
+
+		// Cache full response
+		Cache::instance('nginx+memcache')->set($key, $buffer, $lifetime);
 	}
 }
