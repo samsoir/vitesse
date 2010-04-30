@@ -239,7 +239,7 @@ class Request_Vitesse extends Kohana_Request {
 	 */
 	protected function _create_cache_key()
 	{
-		return trim(Kohana::$base_url, '/').'/cache'.$this->uri();
+		return trim(Kohana::$base_url, '/').'/Vitesse'.$this->uri();
 	}
 
 	/**
@@ -363,6 +363,19 @@ class Request_Vitesse extends Kohana_Request {
 		foreach ($response->headers as $key => $value)
 		{
 			$buffer .= "{$key}: {$value}\n";
+		}
+
+		// Generate cookies
+		foreach ($response->cookies as $name => $value)
+		{
+			/**
+			 * @todo Add full support for httpOnly and https
+			 * restricted cookies
+			 */
+			$buffer .= 'Set-Cookie: '.$name.'='.Cookie::salt($name, $value['value']).'~'.$value['value'].
+				'; expires: '.gmdate('D, d M Y H:i:s T', $value['expiration']).
+				'; path: '.Cookie::$path.
+				'; domain: '.Cookie::$domain."\n"; 
 		}
 
 		// Create HTTP body
