@@ -51,14 +51,16 @@ class Request_Vitesse extends Kohana_Request {
 		}
 
 		// If no Cache-Control parts are detected
-		if (FALSE === preg_match_all('/(?<key>[a-z\-]+)=?(?<value>\w+)?/', $headers['Cache-Control'], $matches))
+		if ( (bool) preg_match_all('/(?<key>[a-z\-]+)=?(?<value>\w+)?/', $headers['Cache-Control'], $matches))
+		{
+			// Return combined cache-control key/value pairs
+			return array_combine($matches['key'], $matches['value']);
+		}
+		else
 		{
 			// Return
 			return FALSE;
 		}
-
-		// Return combined cache-control key/value pairs
-		return array_combine($matches['key'], $matches['value']);
 	}
 
 	/**
@@ -102,7 +104,7 @@ class Request_Vitesse extends Kohana_Request {
 		parent::__construct($uri, $config);
 
 		// Initialise the cache library (if required)
-		if (NULL === $this->_cache)
+		if ($this->_cache === NULL)
 		{
 			$this->_cache = Cache::instance('vitesse');
 		}
@@ -260,16 +262,14 @@ class Request_Vitesse extends Kohana_Request {
 			// return
 			return FALSE
 		}
-
 		// If no-cache or no-store is set
-		if (isset($cache_control['no-cache'] or isset($cache_control['no-store'])))
+		else if (isset($cache_control['no-cache']) or isset($cache_control['no-store']))
 		{
 			// return
 			return FALSE;
 		}
-
 		// If the response status is not Success
-		if ($response->status < 200 or $response->status > 299)
+		else if ($response->status < 200 or $response->status > 299)
 		{
 			// return
 			return FALSE;
