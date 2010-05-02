@@ -2,12 +2,12 @@
 
 return array
 (
-	'default_adaptor'            => 'null',
+	'default_decorator'          => 'null',
 	'cache_configuration_groups' => array
 	(
-		'Request_Cache_Adaptor_Apc'      => 'apc',
-		'Request_Cache_Adaptor_Memcache' => 'memcache',
-		'Request_Cache_Adaptor_Nginx'    => 'nginx+memcache',
-		'Request_Cache_Adaptor_File'     => 'file',
+		'Request_Cache_Decorator_Apc'      => 'apc',
+		'Request_Cache_Decorator_Memcache' => 'memcache',
+		'Request_Cache_Decorator_Nginx'    => 'memcache',
+		'Request_Cache_Decorator_File'     => 'file',
 	)
 );

@@ -10,8 +10,8 @@
  * Request and response wrapper. Uses the [Route] class to determine what
  * [Controller] to send the request to.
  *
- * @package    Kohana
- * @category   Base
+ * @package    Vitesse
+ * @category   Request
  * @author     Kohana Team
  * @copyright  (c) 2008-2009 Kohana Team
  * @license    http://kohanaphp.com/license
@@ -23,20 +23,19 @@ class Request_Vitesse extends Kohana_Request {
 	 */
 	public static $cache;
 
+	/**
+	 * @var  string
+	 */
 	public $cache_key_prefix = ':Vitesse:';
 
 	/**
-	 * Processes the request, executing the controller action that handles this
-	 * request, determined by the [Route].
-	 *
-	 * 1. Before the controller action is called, the [Controller::before] method
-	 * will be called.
-	 * 2. Next the controller action will be called.
-	 * 3. After the controller action is called, the [Controller::after] method
-	 * will be called.
-	 *
-	 * By default, the output from the controller is captured and returned, and
-	 * no headers are sent.
+	 * Processes the request, checking for attached
+	 * Cache decorators. If decorators are found,
+	 * the request performs the following tasks.
+	 * 
+	 * 1. Checks for existing cached response, returning valid hits
+	 * 2. Runs the Kohana_Request::execute() logic to create a response
+	 * 3. Caches the response using a decorator if valid
 	 *
 	 *     $request->execute();
 	 *
@@ -49,7 +48,7 @@ class Request_Vitesse extends Kohana_Request {
 	public function execute()
 	{
 		// If there are no cache adaptors
-		if ( ! Request::$cache->cache_adaptors)
+		if ( ! Request::$cache->cache_decorators)
 		{
 			// Get out of here
 			return parent::execute();
