@@ -318,7 +318,7 @@ class Request_Async_Gearman extends Request_Async_Driver {
 		$uuid = $task->unique();
 		$error = ($exception === NULL);
 
-		$this->_errors[$uuid] = array(
+		$this->errors[$uuid] = array(
 			'type'    => $error ? 'error' : 'exception',
 			'errorNo' => $error ? $this->_gearman_client->getErrno() : $exception->getCode(),
 			'error'   => $error ? $this->_gearman_client->error() : $exception,
