@@ -180,6 +180,10 @@ class Request_Vitesse extends Kohana_Request implements Serializable {
 				{
 					$value = unserialize($value);
 				}
+				else if ($key === 'headers')
+				{
+					$value = (array) $value;
+				}
 
 				// Apply it
 				$this->$key = $value;

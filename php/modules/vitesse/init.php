@@ -7,7 +7,7 @@
  */
 Request::$cache = Request_Cache::instance()
 	->attach(Request_Cache_Decorator::instance('null'))
-	->attach(Request_Cache_Decorator::instance('nginx'));
+	->attach(Request_Cache_Decorator::instance('memcache'));
 
 // For now limit this to cli mode (need to find a good handle for this)
 if (Kohana::$is_cli)

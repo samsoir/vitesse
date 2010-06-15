@@ -222,17 +222,16 @@ class Request_Cache {
 	public static function validate_get(Kohana_Response $response)
 	{
 		// Get the Cache-Control Header
-		$cache_control = Request_Cache::parse_cache_control($response->headers);
+		$cache_control = Request_Cache::parse_cache_control((array) $response->headers);
 
 		// If the response has expired
-		if ($cache_control['max-age']+time() < time())
+		if (($cache_control['max-age']+time()) < time())
 		{
 			// Remove this entry
 			Request_Cache::delete($key);
 			// return false
 			return FALSE;
 		}
-
 		// Return true
 		return TRUE;
 	}

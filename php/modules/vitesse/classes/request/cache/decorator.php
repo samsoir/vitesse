@@ -45,7 +45,7 @@ abstract class Request_Cache_Decorator {
 	 * is supplied, the `vitesse.default_decorator` configuration setting will be used.
 	 * 
 	 *     // Create a new memcache decorator
-	 *     $decorator = Request_Cache_Decorator::instance('memcache');
+	 *     $decorator = Request_Cache_Decorator::instance('Memcache');
 	 *
 	 *     // Create a new default decorator
 	 *     $default_decorator = Request_Cache_Decorator::instance();
@@ -236,7 +236,7 @@ abstract class Request_Cache_Decorator {
 		$cache_control = Request_Cache::parse_cache_control($response->headers);
 
 		// Set the lifetime of the cache from the header
-		$this->_lifetime = $cache_control['max-age'];
+		$this->_lifetime = (int) $cache_control['max-age'];
 
 		// Get time now
 		$time = time();
