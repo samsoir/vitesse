@@ -45,23 +45,21 @@ class Request_Async implements Iterator, Countable {
 	 */
 	public function __construct(array $config = NULL)
 	{
-		if ($config === NULL)
+		if ($config !== NULL)
 		{
-			return;
-		}
-
-		foreach ($config as $key => $value)
-		{
-			if (property_exists($this, $key) or ($protected = property_exists($this, '_'.$key)))
+			foreach ($config as $key => $value)
 			{
-				if ($protected !== NULL)
+				if (property_exists($this, $key) or ($protected = property_exists($this, '_'.$key)))
 				{
-					$key = '_'.$key;
-				}
+					if ($protected !== NULL)
+					{
+						$key = '_'.$key;
+					}
 
-				$this->$key = $value;
-				$protected === NULL;
-				continue;
+					$this->$key = $value;
+					$protected === NULL;
+					continue;
+				}
 			}
 		}
 	}
