@@ -10,7 +10,7 @@
  * and then loaded.
  *
  *     // Create a new Nginx cache decorator
- *     $nginx_decorator = Request_Cache_Decorator::instance('nginx');
+ *     $nginx_decorator = Request_Cache_Decorator::instance('Nginx');
  *
  *     if ($nginx_decorator instanceof Request_Cache_Decorator_Nginx)
  *     {
@@ -29,6 +29,11 @@
  * @license    http://kohanaphp.com/license
  */
 abstract class Request_Cache_Decorator {
+
+	/**
+	 * @var   string  default decorator to use
+	 */
+	public static $default = 'Null';
 
 	/**
 	 * @param   array    store of decorator instances
@@ -58,11 +63,11 @@ abstract class Request_Cache_Decorator {
 		if ($decorator === NULL)
 		{
 			// Set it to the default adaptor
-			$decorator = $config->default_decorator;
+			$decorator = Request_Cache_Decorator::$default;
 		}
 
 		// Create the full adaptor class name
-		$decorator_class = 'Request_Cache_Decorator_'.ucfirst($decorator);
+		$decorator_class = 'Request_Cache_Decorator_'.$decorator;
 
 		// If an instance already exists
 		if (isset(Request_Cache_Decorator::$_instances[$decorator_class]))
@@ -244,7 +249,7 @@ abstract class Request_Cache_Decorator {
 		}
 
 		// Tell caches to check their validation
-		$cache_control['must-revalidate'] = '';
+		$cache_control['must-revalidate'] = NULL;
 
 		// Replace the headers with those that are not set
 		$response->headers += array(

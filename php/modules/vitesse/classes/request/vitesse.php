@@ -16,7 +16,7 @@
  * @copyright  (c) 2008-2009 Kohana Team
  * @license    http://kohanaphp.com/license
  */
-class Request_Vitesse extends Kohana_Request {
+class Request_Vitesse extends Kohana_Request implements Serializable {
 
 	/**
 	 * @var  Request_Cache
@@ -107,4 +107,85 @@ class Request_Vitesse extends Kohana_Request {
 		return $this->cache_key_prefix.$uri;
 	}
 
+	/**
+	 * Serializes the object to json - handy if you
+	 * need to pass the response data to other
+	 * systems
+	 *
+	 * @param   array    array of data to serialize
+	 * @return  string
+	 * @throws  Kohana_Exception
+	 */
+	public function serialize(array $toSerialize = array())
+	{
+		// Serialize the class properties
+		$toSerialize += array
+		(
+			'method'                 => $this->method,
+			'route'                  => $this->route,
+			'status'                 => $this->status,
+			'response'               => serialize($this->response),
+			'headers'                => $this->headers,
+			'body'                   => $this->body,
+			'cookies'                => $this->cookies,
+			'directory'              => $this->directory,
+			'controller'             => $this->controller,
+			'action'                 => $this->action,
+			'uri'                    => $this->uri,
+			'get'                    => $this->get,
+			'post'                   => $this->post,
+			'is_ajax'                => $this->is_ajax,
+			'_previous_environment'  => $this->_previous_environment,
+			'_external'              => $this->_external
+		);
+
+		$string = json_encode($toSerialize);
+
+		if (is_string($string))
+		{
+			return $string;
+		}
+		else
+		{
+			throw new Kohana_Exception('Unable to correctly encode object to json');
+		}
+	}
+
+	/**
+	 * JSON encoded object
+	 *
+	 * @param   string   json encoded object
+	 * @return  bool
+	 * @throws  Kohana_Exception
+	 */
+	public function unserialize($string)
+	{
+		// Unserialise object
+		$unserialized = json_decode($string);
+
+		// If failed
+		if ($unserialized === NULL)
+		{
+			// Throw exception
+			throw new Kohana_Exception('Unable to correctly decode object from json');
+		}
+
+		// Foreach key/value pair
+		foreach ($unserialized as $key => $value)
+		{
+			// If it belongs here
+			if (property_exists($this, $key))
+			{
+				if ($key === 'response')
+				{
+					$value = unserialize($value);
+				}
+
+				// Apply it
+				$this->$key = $value;
+			}
+		}
+
+		return TRUE;
+	}
 }

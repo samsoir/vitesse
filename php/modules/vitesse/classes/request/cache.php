@@ -70,8 +70,8 @@ class Request_Cache {
 	 *     // Set the cache control headers you want to use
 	 *     $cache_control = array(
 	 *         'max-age'          => 3600,
-	 *         'must-revalidate'  => '',
-	 *         'public'           => ''
+	 *         'must-revalidate'  => NULL,
+	 *         'public'           => NULL
 	 *     );
 	 *     
 	 *     // Create the cache control header, creates :

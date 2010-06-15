@@ -2,7 +2,6 @@
 
 return array
 (
-	'default_decorator'          => 'null',
 	'cache_configuration_groups' => array
 	(
 		'Request_Cache_Decorator_Apc'      => 'apc',
